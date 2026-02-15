@@ -33,6 +33,7 @@
               inherit inputs;
               mactahoe-gtk-theme = nixpkgs.legacyPackages.x86_64-linux.callPackage ./pkgs/mactahoe-gtk-theme.nix {};
               mactahoe-icon-theme = nixpkgs.legacyPackages.x86_64-linux.callPackage ./pkgs/mactahoe-icon-theme.nix {};
+              mactahoe-kde-theme = nixpkgs.legacyPackages.x86_64-linux.callPackage ./pkgs/mactahoe-kde-theme.nix {};
               plasma-manager = inputs.plasma-manager;
             };
 

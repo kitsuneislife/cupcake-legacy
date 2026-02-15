@@ -19,8 +19,11 @@ in
 
     # ── Display Manager (SDDM) ───────────────────
     services.displayManager.sddm.enable = true;
-    # Disable SDDM Wayland for now - use X11 for login screen
-    services.displayManager.sddm.wayland.enable = false;
+    # Enable Wayland for SDDM (allows Plasma Wayland sessions)
+    services.displayManager.sddm.wayland.enable = true;
+    
+    # Set Plasma Wayland as default session
+    services.displayManager.defaultSession = "plasma";
     
     # ── Graphics / Hardware ──────────────────────
     # Plasma 6 / Wayland requires this
@@ -45,6 +48,9 @@ in
       
       # Polkit Agent (KDE's agent is auto-started)
       kdePackages.polkit-kde-agent-1
+      
+      # Krohnkite - Dynamic tiling for KWin
+      kdePackages.krohnkite
       
       # Clipboard
       wl-clipboard

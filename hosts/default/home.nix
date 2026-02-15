@@ -1,4 +1,4 @@
-{ config, pkgs, mactahoe-gtk-theme, mactahoe-icon-theme, plasma-manager, ... }:
+{ config, pkgs, mactahoe-gtk-theme, mactahoe-icon-theme, mactahoe-kde-theme, plasma-manager, ... }:
 
 {
   # Import plasma-manager module
@@ -50,10 +50,12 @@
   };
 
   # ── Qt Theme ───────────────────────────────
-  qt = {
-    enable = true;
-    platformTheme.name = "gtk";
-  };
+  # Let Plasma handle Qt theming automatically
+  # Setting qt.platformTheme breaks Plasma 6!
+  # qt = {
+  #   enable = true;
+  #   platformTheme.name = "gtk";
+  # };
 
   # ── Cursor (system-wide via Home Manager) ──
   home.pointerCursor = {
@@ -78,51 +80,59 @@
 
   # ── Packages (user-level, not system) ──────
   home.packages = with pkgs; [
-    # Nothing yet — system packages come from modules/apps
+    # MacTahoe KDE theme
+    mactahoe-kde-theme
   ];
 
   # ── KDE Plasma Configuration ────────────────
+  # Minimal plasma-manager setup - let Plasma use its defaults
   programs.plasma = {
     enable = true;
     
     # Workspace settings
     workspace = {
-      # Use Breeze Dark theme as base
-      lookAndFeel = "org.kde.breezedark.desktop";
+      # Apply MacTahoe Dark global theme
+      lookAndFeel = "com.github.vinceliuice.MacTahoe-Dark";
       
-      # Cursor theme
       cursor = {
         theme = "macOS-BigSur";
         size = 24;
       };
-      
-      # Wallpaper (you can customize this later)
-      # wallpaper = "${pkgs.kdePackages.plasma-workspace-wallpapers}/share/wallpapers/Next/contents/images/1920x1080.png";
     };
     
-    # Panel configuration
-    panels = [
-      # Bottom panel (taskbar)
-      {
-        location = "bottom";
-        widgets = [
-          "org.kde.plasma.kickoff"  # Application launcher
-          "org.kde.plasma.icontasks"  # Task manager
-          "org.kde.plasma.marginsseparator"
-          "org.kde.plasma.systemtray"
-          "org.kde.plasma.digitalclock"
-        ];
-      }
-    ];
-    
+    # Let Plasma create default panel
     # Shortcuts
     shortcuts = {
       "kwin"."Show Desktop" = "Meta+D";
       "org.kde.konsole.desktop"."_launch" = "Meta+Return";
     };
     
-    # Enable config override (fully declarative)
-    # overrideConfig = true;  # Uncomment to enforce strict declarative behavior
+    # ── Krohnkite Configuration ─────────────────
+    # Enable and configure Krohnkite tiling script
+    configFile = {
+      # Enable Krohnkite
+      "kwinrc"."Plugins"."krohnkiteEnabled" = true;
+      
+      # Krohnkite default settings
+      "kwinrc"."Script-krohnkite" = {
+        # Tiling layout engine (default: Tile)
+        layoutPerActivity = false;
+        layoutPerDesktop = false;
+        
+        # Remove borders from tiled windows
+        noTileBorder = true;
+        
+        # Screen gaps (pixels)
+        screenGapBetween = 8;
+        screenGapBottom = 8;
+        screenGapLeft = 8;
+        screenGapRight = 8;
+        screenGapTop = 8;
+        
+        # Window gaps (pixels)
+        tileLayoutGap = 8;
+      };
+    };
   };
 
   # Let Home Manager manage itself
