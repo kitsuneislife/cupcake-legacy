@@ -1,0 +1,31 @@
+# Nix build outputs
+result
+result-*
+
+# Dev docs (private, not for GitHub)
+dev-docs/
+
+# AppImage binaries (fetched by Nix)
+*.AppImage
+
+# VM disk images
+*.qcow2
+*.raw
+
+# Test artifacts
+tests.log
+*.log
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Nix
+.direnv/

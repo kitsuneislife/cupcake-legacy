@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+# ✦ eclair — Cupcake NixOS Package & Feature Manager
+# Part of the Cupcake Project
+
+set -euo pipefail
+
+COMMAND="${1:-}"
+FEATURE="${2:-}"
+
+# --- Colors ---
+BOLD='\033[1m'
+DIM='\033[2m'
+CYAN='\033[36m'
+GREEN='\033[32m'
+RED='\033[31m'
+YELLOW='\033[33m'
+BLUE='\033[34m'
+RESET='\033[0m'
+
+# --- Paths ---
+if [[ -d "/cupcake" ]]; then
+    BASE_DIR="/cupcake"
+else
+    BASE_DIR="."
+fi
+
+CONFIG_FILE="$BASE_DIR/hosts/default/features.nix"
+USER_PKGS_FILE="$BASE_DIR/hosts/default/user-packages.nix"
+
+# --- Helpers ---
+info()    { echo -e "${CYAN}✦${RESET} $*"; }
+success() { echo -e "${GREEN}✓${RESET} $*"; }
+warn()    { echo -e "${YELLOW}⚠${RESET} $*"; }
+error()   { echo -e "${RED}✗${RESET} $*"; }
+
+usage() {
+    echo -e "${BOLD}✦ eclair${RESET} — Cupcake Package & Feature Manager"
+    echo ""
+    echo -e "${BOLD}USAGE${RESET}"
+    echo "  eclair <command> [args]"
+    echo ""
+    echo -e "${BOLD}FEATURES${RESET}"
+    echo -e "  ${CYAN}enable${RESET}  <feature>   Enable a system feature"
+    echo -e "  ${CYAN}disable${RESET} <feature>   Disable a system feature"
+    echo -e "  ${CYAN}list${RESET}               List features and their status"
+    echo ""
+    echo -e "${BOLD}PACKAGES${RESET}"
+    echo -e "  ${CYAN}install${RESET} <pkg>       Add a package to the system"
+    echo -e "  ${CYAN}remove${RESET}  <pkg>       Remove a package"
+    echo -e "  ${CYAN}search${RESET}  <query>     Search available packages"
+    echo ""
+    echo -e "${BOLD}SYSTEM${RESET}"
+    echo -e "  ${CYAN}update${RESET}              Rebuild & switch to new config"
+    echo -e "  ${CYAN}clean${RESET}               Garbage collect old generations"
+    echo -e "  ${CYAN}help${RESET}                Show keybind cheatsheet"
+    exit 1
+}
+
+# --- Commands ---
+
+if [[ -z "$COMMAND" ]]; then
+    usage
+fi
+
+# Update: rebuild the NixOS system with current flake
+if [[ "$COMMAND" == "update" ]]; then
+    info "Rebuilding system from flake..."
+    echo ""
+    if pkexec nixos-rebuild switch --flake "$BASE_DIR"; then
+        echo ""
+        success "System updated successfully!"
+    else
+        echo ""
+        error "Update failed. Check the output above for details."
+        exit 1
+    fi
+    exit 0
+fi
+
+# Clean: garbage collect old generations
+if [[ "$COMMAND" == "clean" ]]; then
+    info "Collecting garbage..."
+    if pkexec nix-collect-garbage -d; then
+        success "Garbage collected."
+    else
+        error "Failed to collect garbage."
+        exit 1
+    fi
+    exit 0
+fi
+
+# Search: find available packages
+if [[ "$COMMAND" == "search" ]]; then
+    if [[ -z "$FEATURE" ]]; then
+        error "Please provide a search query."
+        echo "  Usage: eclair search <query>"
+        exit 1
+    fi
+    info "Searching for '${BOLD}$FEATURE${RESET}'..."
+    echo ""
+    nix search nixpkgs "$FEATURE" 2>/dev/null || echo "No results found."
+    exit 0
+fi
+
+# Help: show cheatsheet
+if [[ "$COMMAND" == "help" ]]; then
+    cat "$BASE_DIR/modules/docs/CHEATSHEET.md"
+    exit 0
+fi
+
+# List: show all features and status
+if [[ "$COMMAND" == "list" ]]; then
+    echo -e "${BOLD}✦ System Features${RESET}"
+    echo ""
+    grep "\.enable" "$CONFIG_FILE" | while IFS= read -r line; do
+        name=$(echo "$line" | sed -E 's/.*\.([a-zA-Z]+)\.enable.*/\1/')
+        status=$(echo "$line" | grep -o "true\|false")
+        if [[ "$status" == "true" ]]; then
+            echo -e "  ${GREEN}●${RESET} ${BOLD}$name${RESET} ${DIM}enabled${RESET}"
+        else
+            echo -e "  ${DIM}○${RESET} $name ${DIM}disabled${RESET}"
+        fi
+    done
+    echo ""
+    echo -e "${BOLD}✦ Installed Packages${RESET}"
+    echo ""
+    grep -v "^[[:space:]]*#" "$USER_PKGS_FILE" | grep -v "^{" | grep -v "^}" | grep -v "^\[" | grep -v "^\]" | grep -v "^$" | sed 's/^[[:space:]]*/  /' | while IFS= read -r pkg; do
+        pkg_clean=$(echo "$pkg" | xargs)
+        if [[ -n "$pkg_clean" ]]; then
+            echo -e "  ${BLUE}◆${RESET} $pkg_clean"
+        fi
+    done
+    exit 0
+fi
+
+# --- Require second argument for remaining commands ---
+
+if [[ -z "$FEATURE" ]]; then
+    error "Missing argument for '$COMMAND'"
+    usage
+fi
+
+# --- Package Management ---
+
+if [[ "$COMMAND" == "install" ]]; then
+    if grep -q "$FEATURE" "$USER_PKGS_FILE"; then
+        warn "Package '${BOLD}$FEATURE${RESET}' is already installed."
+        exit 0
+    fi
+    sed -i "/# ---------------------------/i \    $FEATURE" "$USER_PKGS_FILE"
+    success "Package '${BOLD}$FEATURE${RESET}' added."
+    info "Run ${BOLD}eclair update${RESET} to apply."
+    exit 0
+fi
+
+if [[ "$COMMAND" == "remove" ]]; then
+    if ! grep -q "$FEATURE" "$USER_PKGS_FILE"; then
+        warn "Package '${BOLD}$FEATURE${RESET}' is not installed."
+        exit 0
+    fi
+    sed -i "/^[[:space:]]*$FEATURE$/d" "$USER_PKGS_FILE"
+    success "Package '${BOLD}$FEATURE${RESET}' removed."
+    info "Run ${BOLD}eclair update${RESET} to apply."
+    exit 0
+fi
+
+# --- Feature Toggling ---
+
+if [[ "$COMMAND" != "enable" && "$COMMAND" != "disable" ]]; then
+    error "Unknown command: $COMMAND"
+    usage
+fi
+
+LINE=$(grep -nE "(\.|^|[[:space:]])${FEATURE}\.enable" "$CONFIG_FILE")
+
+if [[ -z "$LINE" ]]; then
+    error "Feature '${BOLD}$FEATURE${RESET}' not found."
+    echo ""
+    echo -e "${BOLD}Available features:${RESET}"
+    grep "\.enable" "$CONFIG_FILE" | sed -E 's/.*\.([a-zA-Z]+)\.enable.*/  \1/'
+    exit 1
+fi
+
+LINE_NO=$(echo "$LINE" | cut -d: -f1)
+CURRENT_STATE=$(echo "$LINE" | grep -o "true\|false")
+
+TARGET_STATE="true"
+[[ "$COMMAND" == "disable" ]] && TARGET_STATE="false"
+
+if [[ "$CURRENT_STATE" == "$TARGET_STATE" ]]; then
+    warn "Feature '${BOLD}$FEATURE${RESET}' is already ${COMMAND}d."
+    exit 0
+fi
+
+sed -i "${LINE_NO}s/${CURRENT_STATE}/${TARGET_STATE}/" "$CONFIG_FILE"
+
+success "Feature '${BOLD}$FEATURE${RESET}' ${COMMAND}d."
+info "Run ${BOLD}eclair update${RESET} to apply."
