@@ -1,10 +1,10 @@
 <div align="center">
-  <h1>✦ Cupcake</h1>
+  <h1>✦ Cupcake (Legacy) </h1>
   <p><strong>A modern, modular NixOS distribution</strong></p>
   <p>
     <em>KDE Plasma 6 + Declarative Config • macOS-inspired design • "Pancake" Desktop</em>
   </p>
-  <p>🚧 <strong>STATUS: UNDER CONSTRUCTION / EM CRIAÇÃO</strong> 🚧</p>
+  <p>🚧 <strong>STATUS: ABANDONED </strong> 🚧</p>
 </div>
 
 ---
